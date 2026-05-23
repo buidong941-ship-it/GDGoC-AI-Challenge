@@ -1,0 +1,22 @@
+# Bomberland Flask Webhook Server
+# Install: sudo cp deploy/bomberland-web.service /etc/systemd/system/
+# Enable:  sudo systemctl enable bomberland-web && sudo systemctl start bomberland-web
+# Logs:    journalctl -u bomberland-web -f
+
+[Unit]
+Description=Bomberland Registration & Submission Webhook Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=__WORKDIR__
+Environment="PATH=__CONDA_ENV__/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=__CONDA_ENV__/bin/python3 -m competition.registration.app
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

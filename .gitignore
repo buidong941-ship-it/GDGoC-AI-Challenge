@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+logs/
+.venv
+ckpts/
+.vscode/
+*.db
+.pytest_cache/
+.env
+secrets/
+submissions/
+.drive_locks/
+backups/
+tests/
+training/

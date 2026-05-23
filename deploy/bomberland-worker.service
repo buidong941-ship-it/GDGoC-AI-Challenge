@@ -1,0 +1,22 @@
+# Bomberland Background Evaluation Worker
+# Install: sudo cp deploy/bomberland-worker.service /etc/systemd/system/
+# Enable:  sudo systemctl enable bomberland-worker && sudo systemctl start bomberland-worker
+# Logs:    journalctl -u bomberland-worker -f
+
+[Unit]
+Description=Bomberland Background Evaluation Worker
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=__WORKDIR__
+Environment="PATH=__CONDA_ENV__/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=__CONDA_ENV__/bin/python3 -m scripts.organizer.run_evaluation background
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
