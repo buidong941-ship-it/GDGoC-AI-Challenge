@@ -350,6 +350,7 @@ class TrainingAgent:
 
 def train_dqn(user_id=0, enemy_type="simple", num_episodes=100, max_steps=500, seed=86, save_model=True, pretrained_model=None):
     # Training-only imports - placed here so they don't run when the evaluator loads this file
+    import importlib.util as _importlib_util
     import sys as _sys
     from pathlib import Path as _Path
     _root = _Path(__file__).resolve().parent.parent.parent
@@ -362,6 +363,22 @@ def train_dqn(user_id=0, enemy_type="simple", num_episodes=100, max_steps=500, s
                        TacticalRuleAgent, GeniusRuleAgent, BoxFarmerAgent)
     from engine import BomberEnv 
 
+    def _load_external_agent(agent_path, agent_id):
+        agent_path = _Path(agent_path).resolve()
+        if not agent_path.exists():
+            raise FileNotFoundError(f"External enemy agent not found: {agent_path}")
+        agent_dir = str(agent_path.parent)
+        if agent_dir not in _sys.path:
+            _sys.path.insert(0, agent_dir)
+        spec = _importlib_util.spec_from_file_location("my_rule_enemy_agent", str(agent_path))
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load external enemy agent: {agent_path}")
+        module = _importlib_util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        if not hasattr(module, "Agent"):
+            raise AttributeError(f"External enemy agent must define class Agent: {agent_path}")
+        return module.Agent(agent_id)
+
     env = BomberEnv(max_steps=max_steps, seed=seed)
     if enemy_type == "simple":
         enemy_agent = SimpleRuleAgent(1)
@@ -373,6 +390,9 @@ def train_dqn(user_id=0, enemy_type="simple", num_episodes=100, max_steps=500, s
         enemy_agent = GeniusRuleAgent(1)
     elif enemy_type == "box_farmer":
         enemy_agent = BoxFarmerAgent(1)
+    elif enemy_type == "my_rule":
+        submission_agent_path = _root / "submission" / "agent.py"
+        enemy_agent = _load_external_agent(submission_agent_path, 1)
     else:
         raise ValueError(f"Invalid enemy type: {enemy_type}")
 
@@ -485,6 +505,7 @@ def train_dqn(user_id=0, enemy_type="simple", num_episodes=100, max_steps=500, s
             pbar.set_postfix(reward=f"{total_reward:.2f}", epsilon=f"{epsilon:.3f}")
 
     model_folder = f"ckpts/dqn_{enemy_type}_{num_episodes}_episodes_{max_steps}_steps_{seed}_seed"
+    Path(model_folder).mkdir(parents=True, exist_ok=True)
     if save_model:
         model_path = f"{model_folder}/{user_agent.global_step}_global_step.pth"
         save_model_fn(user_agent.q_net, 
@@ -505,7 +526,7 @@ def training():
     from utils import seed_everything
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--enemy_type", type=str, default="simple", choices=["simple", "smarter", "tactical", "genius", "box_farmer"])
+    parser.add_argument("--enemy_type", type=str, default="simple", choices=["simple", "smarter", "tactical", "genius", "box_farmer", "my_rule"])
     parser.add_argument("--num_episodes", type=int, default=200, help="Number of episodes to train")
     parser.add_argument("--max_steps", type=int, default=500, help="Maximum number of steps per episode")
     parser.add_argument("--seed", type=int, default=86, help="Random seed for reproducibility")
@@ -547,7 +568,7 @@ class Agent:
         self.num_actions = 6
         self.model_ready = False
 
-        checkpoint_path = Path(__file__).parent / "2737502_global_step.pth"
+        checkpoint_path = Path(__file__).parent / "model.pth"
         if load_model:
             try:
                 self._load_checkpoint(checkpoint_path)
